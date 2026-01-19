@@ -1,0 +1,36 @@
+# Entorno virtual
+.venv/
+
+# Cachés y compilados de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs y reportes
+logs/
+*.log
+
+# Cobertura de tests
+htmlcov/
+.coverage
+
+# Configuración de pytest
+.pytest_cache/
+
+# Configuración de VS Code
+.vscode/
+
+# Archivos de build y distribución
+build/
+dist/
+*.spec
+
+# Datos temporales
+*.tmp
+*.bak
+*.swp
+
+# Archivos de sistema (Windows/Mac)
+.DS_Store
+Thumbs.db
