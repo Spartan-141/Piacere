@@ -1,0 +1,3 @@
+2025-11-28 21:02:08,529 INFO app.db.init_db: La tabla mesas ya tiene el formato correcto
+2025-11-28 21:07:02,407 INFO app.db.init_db: La tabla mesas ya tiene el formato correcto
+2025-11-28 21:07:17,949 INFO app.db.init_db: La tabla mesas ya tiene el formato correcto
