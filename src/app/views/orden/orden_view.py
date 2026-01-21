@@ -36,6 +36,8 @@ from ...services import mesas_service
 from ...controllers import orden_controller as orden_controller_module
 from .invoice_preview import InvoicePreviewDialog
 
+import traceback
+
 logger = logging.getLogger(__name__)
 
 
@@ -66,7 +68,8 @@ class OrdenDialog(QDialog):
         self.load_initial_state()
 
     def setup_ui(self):
-        self.setStyleSheet(
+        try:
+            self.setStyleSheet(
             """
             QWidget { background: #121217; color: #e8e8e8; font-family: "Segoe UI", Arial; }
             QGroupBox { border: 0; margin: 0; padding: 0; }
@@ -84,6 +87,10 @@ class OrdenDialog(QDialog):
             .desc { color: #bdbdbd; font-size: 11.5px; }
         """
         )
+        except Exception as e:
+            print(f"Error al aplicar estilo: {e}")
+            import traceback
+            traceback.print_exc()
 
         main_layout = QVBoxLayout(self)
 
@@ -626,13 +633,26 @@ class OrdenDialog(QDialog):
                 }
             )
 
+        # Selector de método de pago
+        metodos = ["Efectivo", "Punto de Venta", "Pago Móvil", "Divisa" , "Transferencia", "Zelle", "Otro"]
+        metodo_pago, ok = QInputDialog.getItem(
+            self,
+            "Método de Pago",
+            "Seleccione forma de pago:",
+            metodos,
+            0,
+            False
+        )
+        if not ok or not metodo_pago:
+            return
+
         numero_sugerido = f"FACT-{datetime.datetime.now().strftime('%Y%m%d')}-{random.randint(1000,9999)}"
         dlg = InvoicePreviewDialog(
             self.orden_id,
             self.input_cliente.text().strip() or "Consumidor final",
             productos_display,
             self._calcular_total(),
-            forma_pago="Efectivo",
+            forma_pago=metodo_pago,
             numero_factura=numero_sugerido,
             parent=self,
         )
@@ -656,6 +676,7 @@ class OrdenDialog(QDialog):
                 pass
 
     def cancelar_orden(self):
+        print("DEBUG: OrdenDialog.cancelar_orden() llamado")
         reply = QMessageBox.question(
             self,
             "Confirmar cancelación",
@@ -664,43 +685,31 @@ class OrdenDialog(QDialog):
             QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
+            print("DEBUG: Cancelación abortada por el usuario")
             return
 
+        print(f"DEBUG: Procediendo a cancelar orden_id={self.orden_id}")
         if self.orden_id:
             ok, err = orden_controller_module.cancelar_orden_flow(self.orden_id)
             if not ok:
+                print(f"DEBUG: Error al cancelar orden en DB: {err}")
                 QMessageBox.critical(self, "Error", err or "No se pudo cancelar orden")
                 return
+            print("DEBUG: Orden cancelada exitosamente en DB")
 
         self.productos_seleccionados = []
         self.orden_id = None
         self.detalles_originales = {}
         self.actualizar_tabla_productos()
+
+        # Cerrar el diálogo (reject indica cancelación)
+        # No hace falta emitir aquí porque se actualiza al salir del exec() en mesas_view
+        print("DEBUG: Llamando a self.reject()")
         self.reject()
+        print("DEBUG: Post self.reject()")
 
     def _marcar_orden_modificada_por_ui(self):
-        try:
-            self.btn_confirmar.setVisible(True)
-            self.btn_factura.setVisible(False)
-            self.btn_cancelar.setVisible(False)
-        except Exception:
-            pass
-
-            return
-
-        if self.orden_id:
-            ok, err = orden_controller_module.cancelar_orden_flow(self.orden_id)
-            if not ok:
-                QMessageBox.critical(self, "Error", err or "No se pudo cancelar orden")
-                return
-
-        self.productos_seleccionados = []
-        self.orden_id = None
-        self.detalles_originales = {}
-        self.actualizar_tabla_productos()
-        self.reject()
-
-    def _marcar_orden_modificada_por_ui(self):
+        """Oculta botones de acción cuando se modifica la orden en la UI"""
         try:
             self.btn_confirmar.setVisible(True)
             self.btn_factura.setVisible(False)

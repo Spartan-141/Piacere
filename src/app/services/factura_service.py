@@ -22,21 +22,22 @@ def obtener_facturas_rango(fecha_inicio: str, fecha_fin: str) -> List[Factura]:
         return [Factura(*row) for row in rows]
 
 
-def obtener_facturas_por_cliente(cliente: str) -> List[Factura]:
+def buscar_facturas(termino: str) -> List[Factura]:
     """
-    Devuelve lista de facturas filtradas por nombre de cliente (coincidencia parcial).
+    Busca facturas por número O por nombre de cliente.
     Retorna objetos Factura.
     """
     with ConnectionManager() as conn:
         cur = conn.cursor()
+        param = f"%{termino}%"
         cur.execute(
             """
             SELECT id, orden_id, numero_factura, fecha, cliente_nombre, forma_pago, total, total_ves
             FROM facturas
-            WHERE cliente_nombre LIKE ?
+            WHERE cliente_nombre LIKE ? OR numero_factura LIKE ?
             ORDER BY fecha DESC
         """,
-            (f"%{cliente}%",),
+            (param, param),
         )
         rows = cur.fetchall()
         return [Factura(*row) for row in rows]

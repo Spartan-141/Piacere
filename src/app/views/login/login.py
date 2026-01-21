@@ -6,14 +6,13 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QPixmap
 from ..main.main_window import MainWindow
 from ...config import resource_path
-from ...db.connection import crear_conexion
 
 
 class LoginWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Sistema de Restaurante - Login")
-        self.setFixedSize(900, 500)
+        self.setFixedSize(800, 500)
         self.setup_ui()
 
     def setup_ui(self):
@@ -34,7 +33,7 @@ class LoginWindow(QWidget):
         layout_izquierdo.setContentsMargins(0, 0, 0, 0)
         layout_izquierdo.setSpacing(0)
 
-        imagen_path = resource_path("images", "login_image.jpg")
+        imagen_path = resource_path("images", "Logo_piacere_grande.png")
         imagen_label = QLabel()
         imagen_label.setObjectName("imagen_label")
         pix = QPixmap(str(imagen_path))
@@ -101,6 +100,7 @@ class LoginWindow(QWidget):
         link_forgot.setTextFormat(Qt.RichText)
         link_forgot.setTextInteractionFlags(Qt.TextBrowserInteraction)
         link_forgot.setAlignment(Qt.AlignCenter)
+        link_forgot.linkActivated.connect(self.abrir_recuperar_password)
 
         # Agregar widgets al layout derecho
         layout_derecho.addWidget(titulo)
@@ -120,6 +120,8 @@ class LoginWindow(QWidget):
         frame_derecho.update()
 
     def validar_login(self):
+        from ...services.usuarios_service import validar_credenciales
+        
         usuario = self.input_usuario.text()
         clave = self.input_clave.text()
 
@@ -127,25 +129,24 @@ class LoginWindow(QWidget):
             QMessageBox.warning(self, "Error", "Todos los campos son obligatorios")
             return
 
-        conexion = crear_conexion()
-        if conexion:
-            try:
-                cursor = conexion.cursor()
-                cursor.execute(
-                    "SELECT id, nombre, apellido, rol FROM usuarios WHERE usuario = ? AND clave = ?",
-                    (usuario, clave)
-                )
-                #recuperar los datos
-                usuario_data = cursor.fetchone()
+        # Usar el servicio de validación de credenciales
+        usuario_obj = validar_credenciales(usuario, clave)
 
-                if usuario_data:
-                    self.main_window = MainWindow(usuario_data)
-                    self.main_window.show()
-                    self.close()
-                else:
-                    QMessageBox.critical(self, "Error", "Credenciales incorrectas")
+        if usuario_obj:
+            # Pasar objeto Usuario completo a MainWindow
+            self.main_window = MainWindow(usuario_obj)
+            self.main_window.show()
+            self.close()
+        else:
+            QMessageBox.critical(self, "Error", "Credenciales incorrectas")
 
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Error de base de datos: {str(e)}")
-            finally:
-                conexion.close()
+    def abrir_recuperar_password(self):
+        """Abre el diálogo de recuperación de contraseña"""
+        from .recuperar_password_dialog import RecuperarPasswordDialog
+        from .restablecer_password_dialog import RestablecerPasswordDialog
+        
+        dialog = RecuperarPasswordDialog(self)
+        if dialog.exec():
+            # Si se generó el token exitosamente, abrir diálogo de restablecimiento
+            reset_dialog = RestablecerPasswordDialog(self)
+            reset_dialog.exec()

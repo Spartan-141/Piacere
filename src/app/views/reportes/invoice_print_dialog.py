@@ -258,7 +258,6 @@ class InvoicePrintDialog(QDialog):
                 <!-- Footer -->
                 <div class="footer">
                     <p><strong>¡Gracias por su compra!</strong></p>
-                    <p>Esta es una factura válida</p>
                 </div>
             </div>
         </body>

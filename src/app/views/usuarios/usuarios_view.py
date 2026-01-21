@@ -21,9 +21,9 @@ from ...models import Usuario
 
 
 class UsuariosView(QWidget):
-    def __init__(self, es_admin=True):
+    def __init__(self, usuario_actual):
         super().__init__()
-        self.es_admin = es_admin
+        self.usuario_actual = usuario_actual
         self.setup_ui()
 
     def setup_ui(self):
@@ -36,14 +36,15 @@ class UsuariosView(QWidget):
         titulo.setAlignment(Qt.AlignCenter)
         layout.addWidget(titulo)
 
-        if self.es_admin:
+        # Solo admin puede ver el botón de agregar
+        if self.usuario_actual.es_admin():
             btn_agregar = QPushButton("Registrar Nuevo Usuario")
             btn_agregar.clicked.connect(self.agregar_usuario)
             btn_agregar.setMinimumHeight(50)
             btn_agregar.setStyleSheet("""
                 QPushButton {
                     background-color: #27ae60;
-                    color: #333333;
+                    color: #F5F5DC;
                     font-weight: bold;
                     border-radius: 5px;
                     padding: 10px;
@@ -55,22 +56,15 @@ class UsuariosView(QWidget):
             layout.addWidget(btn_agregar)
 
         self.tabla_usuarios = QTableWidget()
-        # Columnas: Nombre, Apellido, Usuario, Rol, Acciones
-        self.tabla_usuarios.setColumnCount(5)
+        # Columnas: Nombre, Apellido, Usuario, Email, Rol, Acciones
+        self.tabla_usuarios.setColumnCount(6)
         self.tabla_usuarios.setHorizontalHeaderLabels(
-            ["Nombre", "Apellido", "Usuario", "Rol", "Acciones"]
+            ["Nombre", "Apellido", "Usuario", "Email", "Rol", "Acciones"]
         )
         self.tabla_usuarios.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.tabla_usuarios.setSelectionBehavior(QTableWidget.SelectRows)
         self.tabla_usuarios.setEditTriggers(QTableWidget.NoEditTriggers)
         layout.addWidget(self.tabla_usuarios)
-
-        if not self.es_admin:
-            mensaje = QLabel("Solo los administradores pueden gestionar usuarios")
-            mensaje.setFont(QFont("Arial", 12))
-            mensaje.setAlignment(Qt.AlignCenter)
-            mensaje.setStyleSheet("color: #e74c3c; font-weight: bold;")
-            layout.addWidget(mensaje)
 
         self.setLayout(layout)
         self.cargar_usuarios()
@@ -96,24 +90,25 @@ class UsuariosView(QWidget):
         btn_editar.setCursor(Qt.PointingHandCursor)
         btn_editar.setIcon(QIcon(str(resource_path("icons", "editar.png"))))
         btn_editar.clicked.connect(partial(self._on_editar_click, usuario_id))
-
-        btn_eliminar = QPushButton("")
-        btn_eliminar.setStyleSheet("""
-            QPushButton {
-                background-color: #e74c3c;
-                color: #fff;
-                border-radius: 4px;
-                padding: 6px 8px;
-            }
-            QPushButton:hover { background-color: #c0392b; }
-        """)
-        btn_eliminar.setFixedSize(QSize(45, 25))
-        btn_eliminar.setCursor(Qt.PointingHandCursor)
-        btn_eliminar.setIcon(QIcon(str(resource_path("icons", "eliminar.png"))))
-        btn_eliminar.clicked.connect(partial(self._on_eliminar_click, usuario_id))
-
         layout.addWidget(btn_editar)
-        layout.addWidget(btn_eliminar)
+
+        # Solo admin puede eliminar usuarios
+        if self.usuario_actual.es_admin():
+            btn_eliminar = QPushButton("")
+            btn_eliminar.setStyleSheet("""
+                QPushButton {
+                    background-color: #e74c3c;
+                    color: #fff;
+                    border-radius: 4px;
+                    padding: 6px 8px;
+                }
+                QPushButton:hover { background-color: #c0392b; }
+            """)
+            btn_eliminar.setFixedSize(QSize(45, 25))
+            btn_eliminar.setCursor(Qt.PointingHandCursor)
+            btn_eliminar.setIcon(QIcon(str(resource_path("icons", "eliminar.png"))))
+            btn_eliminar.clicked.connect(partial(self._on_eliminar_click, usuario_id))
+            layout.addWidget(btn_eliminar)
 
         return container
 
@@ -126,11 +121,12 @@ class UsuariosView(QWidget):
             self.tabla_usuarios.setItem(row, 0, QTableWidgetItem(usuario.nombre or ""))
             self.tabla_usuarios.setItem(row, 1, QTableWidgetItem(usuario.apellido or ""))
             self.tabla_usuarios.setItem(row, 2, QTableWidgetItem(usuario.usuario))
-            self.tabla_usuarios.setItem(row, 3, QTableWidgetItem(usuario.rol))
+            self.tabla_usuarios.setItem(row, 3, QTableWidgetItem(usuario.email or ""))
+            self.tabla_usuarios.setItem(row, 4, QTableWidgetItem(usuario.rol))
 
             # acciones: widget con botones
             acciones_widget = self._crear_widget_acciones(usuario.id)
-            self.tabla_usuarios.setCellWidget(row, 4, acciones_widget)
+            self.tabla_usuarios.setCellWidget(row, 5, acciones_widget)
 
         # Ajustes de visualización adicionales
         self.tabla_usuarios.resizeRowsToContents()

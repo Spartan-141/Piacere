@@ -44,6 +44,8 @@ class MesasView(QWidget):
         self._widgets_mesa: List[MesaWidget] = []
         self._all_mesas_cache = []
         self._all_ordenes_cache = []
+        self._is_updating = False
+        self._is_modal_active = False  # Nueva protección contra actualización concurrente con modales
         self.setup_ui()
         self.cargar_secciones()
         self.actualizar_mesas()
@@ -93,14 +95,14 @@ class MesasView(QWidget):
         sb_layout.addWidget(QLabel("Sección"))
         self.combo_secciones = QComboBox()
         self.combo_secciones.setMinimumHeight(32)
-        self.combo_secciones.currentIndexChanged.connect(self.actualizar_mesas)
+        self.combo_secciones.currentIndexChanged.connect(lambda: self._on_filter_changed("combo_secciones"))
         sb_layout.addWidget(self.combo_secciones)
 
         # Buscador de mesas por nombre
         sb_layout.addWidget(QLabel("Buscar por nombre"))
         self.input_buscar_nombre = QLineEdit()
         self.input_buscar_nombre.setPlaceholderText("Nombre de mesa...")
-        self.input_buscar_nombre.textChanged.connect(self.actualizar_mesas)
+        self.input_buscar_nombre.textChanged.connect(lambda: self._on_filter_changed("input_buscar_nombre"))
         sb_layout.addWidget(self.input_buscar_nombre)
 
         # Filtro por estado
@@ -111,7 +113,7 @@ class MesasView(QWidget):
         self.combo_estado.addItem("Libre", "libre")
         self.combo_estado.addItem("Ocupada", "ocupado")
         self.combo_estado.addItem("Reservada", "reservada")
-        self.combo_estado.currentIndexChanged.connect(self.actualizar_mesas)
+        self.combo_estado.currentIndexChanged.connect(lambda: self._on_filter_changed("combo_estado"))
         sb_layout.addWidget(self.combo_estado)
 
         # Acciones
@@ -182,91 +184,127 @@ class MesasView(QWidget):
             rows = []
         self._all_ordenes_cache = rows
 
+    # Eliminado _clear_layout ya que usaremos reemplazo total de contenedor
+
+    def _on_filter_changed(self, source):
+        print(f"DEBUG: Filtro cambiado desde: {source}")
+        self.actualizar_mesas()
+
     def actualizar_mesas(self):
-        self.cargar_cache_mesas_y_ordenes()
-        # limpiar grid
-        while self.grid.count():
-            item = self.grid.takeAt(0)
-            w = item.widget()
-            if w:
-                w.setParent(None)
-                w.deleteLater()
-
-        seccion_filtrar = self.combo_secciones.currentData()
-        nombre_buscar = (self.input_buscar_nombre.text() or "").strip().lower()
-        estado_filtrar = self.combo_estado.currentData()
-
-        # Agrupar mesas por sección
-        mesas_por_seccion = {}
-        for mesa in self._all_mesas_cache:
-            mesas_por_seccion.setdefault(mesa.seccion_id, []).append(mesa)
-
-        if not mesas_por_seccion:
-            placeholder = QLabel("No hay mesas registradas")
-            placeholder.setAlignment(Qt.AlignCenter)
-            self.grid.addWidget(placeholder, 0, 0)
+        if self._is_updating:
+            print("DEBUG: MesasView.actualizar_mesas() ignorado (ya en ejecución)")
             return
+        
+        if self._is_modal_active:
+            print("DEBUG: MesasView.actualizar_mesas() BLOQUEADO (diálogo modal activo)")
+            return
+        
+        self._is_updating = True
+        print("DEBUG: MesasView.actualizar_mesas() iniciado (Estrategia: Reemplazo de Contenedor)")
+        
+        try:
+            self.cargar_cache_mesas_y_ordenes()
+            
+            # DEBUG: Ver qué datos trajo el cache
+            print("DEBUG: Estado de mesas en DB:")
+            for m in self._all_mesas_cache:
+                print(f"  - Mesa {m.numero} (ID={m.id}): {m.estado}")
+            
+            # 1. Crear el NUEVO contenedor y su layout
+            nuevo_scroll_content = QWidget()
+            nuevo_scroll_content.setObjectName("mesasScrollContent")
+            nuevo_grid = QGridLayout(nuevo_scroll_content)
+            nuevo_grid.setContentsMargins(8, 8, 8, 8)
+            nuevo_grid.setSpacing(16)
+            
+            # 2. Reiniciar lista de widgets
+            nuevos_widgets = []
 
-        cols = 3
-        row_block = 0
+            seccion_filtrar = self.combo_secciones.currentData()
+            nombre_buscar = (self.input_buscar_nombre.text() or "").strip().lower()
+            estado_filtrar = self.combo_estado.currentData()
 
-        for sec_id, lista in sorted(
-            mesas_por_seccion.items(), key=lambda t: (t[0] or 0)
-        ):
-            if seccion_filtrar is not None and sec_id != seccion_filtrar:
-                continue
+            # Agrupar mesas por sección
+            mesas_por_seccion = {}
+            for mesa in self._all_mesas_cache:
+                mesas_por_seccion.setdefault(mesa.seccion_id, []).append(mesa)
 
-            # Obtener nombre de sección
-            sec_nombre = "Sin sección"
-            if sec_id:
-                secciones = obtener_secciones()
-                for s in secciones:
-                    if s.id == sec_id:
-                        sec_nombre = s.nombre
-                        break
+            if not mesas_por_seccion:
+                placeholder = QLabel("No hay mesas registradas")
+                placeholder.setAlignment(Qt.AlignCenter)
+                nuevo_grid.addWidget(placeholder, 0, 0)
+            else:
+                cols = 3
+                row_block = 0
 
-            group = QGroupBox(sec_nombre)
-            inner = QGridLayout()
-            inner.setSpacing(12)
-            r = 0
-            c = 0
+                for sec_id, lista in sorted(
+                    mesas_por_seccion.items(), key=lambda t: (t[0] or 0)
+                ):
+                    if seccion_filtrar is not None and sec_id != seccion_filtrar:
+                        continue
 
-            for mesa in sorted(lista, key=lambda x: x.numero):
-                # Filtrar por nombre
-                if nombre_buscar and nombre_buscar not in str(mesa.numero).lower():
-                    continue
+                    # Obtener nombre de sección
+                    sec_nombre = "Sin sección"
+                    if sec_id:
+                        secciones = obtener_secciones()
+                        for s in secciones:
+                            if s.id == sec_id:
+                                sec_nombre = s.nombre
+                                break
 
-                # Filtrar por estado
-                if estado_filtrar and mesa.estado.lower() != estado_filtrar:
-                    continue
-
-                # MesaWidget espera tupla por compatibilidad
-                mesa_tuple = (
-                    mesa.id,
-                    mesa.numero,
-                    mesa.estado,
-                    mesa.seccion_id,
-                    sec_nombre,
-                )
-                widget = MesaWidget(mesa_tuple, parent=self)
-                widget.abrir_orden.connect(self._on_widget_abrir_orden)
-                widget.ver_orden.connect(self._on_widget_ver_orden_readonly)
-                widget.reservar_mesa.connect(self._on_widget_reservar_mesa)
-                widget.liberar_mesa.connect(self._on_widget_liberar_mesa)
-                widget.setContextMenuPolicy(Qt.CustomContextMenu)
-                widget.customContextMenuRequested.connect(
-                    lambda pos, w=widget: self.mostrar_menu_contextual(w, pos)
-                )
-                inner.addWidget(widget, r, c)
-                self._widgets_mesa.append(widget)
-                c += 1
-                if c >= cols:
+                    group = QGroupBox(sec_nombre)
+                    inner = QGridLayout()
+                    inner.setSpacing(12)
+                    r = 0
                     c = 0
-                    r += 1
 
-            group.setLayout(inner)
-            self.grid.addWidget(group, row_block, 0)
-            row_block += 1
+                    for mesa in sorted(lista, key=lambda x: x.numero):
+                        if nombre_buscar and nombre_buscar not in str(mesa.numero).lower():
+                            continue
+                        if estado_filtrar and mesa.estado.lower() != estado_filtrar:
+                            continue
+
+                        mesa_tuple = (mesa.id, mesa.numero, mesa.estado, mesa.seccion_id, sec_nombre)
+                        widget = MesaWidget(mesa_tuple, parent=nuevo_scroll_content)
+                        widget.abrir_orden.connect(self._on_widget_abrir_orden)
+                        widget.ver_orden.connect(self._on_widget_ver_orden_readonly)
+                        widget.reservar_mesa.connect(self._on_widget_reservar_mesa)
+                        widget.liberar_mesa.connect(self._on_widget_liberar_mesa)
+                        widget.setContextMenuPolicy(Qt.CustomContextMenu)
+                        widget.customContextMenuRequested.connect(
+                            lambda pos, w=widget: self.mostrar_menu_contextual(w, pos)
+                        )
+                        inner.addWidget(widget, r, c)
+                        nuevos_widgets.append(widget)
+                        c += 1
+                        if c >= cols:
+                            c = 0
+                            r += 1
+
+                    group.setLayout(inner)
+                    nuevo_grid.addWidget(group, row_block, 0)
+                    row_block += 1
+            
+            # 3. CAMBIO CRÍTICO: Reemplazar el widget del scroll de una sola vez
+            print("DEBUG: Aplicando nuevo contenedor al scroll area")
+            old_widget = self.scroll.takeWidget()
+            if old_widget:
+                old_widget.deleteLater()
+            
+            self.scroll.setWidget(nuevo_scroll_content)
+            self.scroll_content = nuevo_scroll_content
+            self.grid = nuevo_grid
+            self._widgets_mesa = nuevos_widgets
+            
+            print(f"DEBUG: MesasView.actualizar_mesas() finalizado. Widgets creados: {len(self._widgets_mesa)}")
+            
+        except Exception as e:
+            print(f"DEBUG: Error crítico en actualizar_mesas: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            self._is_updating = False
+            print("DEBUG: MesasView.actualizar_mesas() flag reset")
 
     def _on_widget_abrir_orden(self, mesa_id: int):
         self.abrir_orden(mesa_id)
@@ -328,15 +366,40 @@ class MesasView(QWidget):
                 mesa_obj.seccion_id,
                 "",
             )
-            dialog = OrdenDialog(mesa_tuple, parent=self)
+            # Usar el padre de más alto nivel para el diálogo (mayor estabilidad)
+            dialog = OrdenDialog(mesa_tuple, parent=self.window())
+            dialog.setAttribute(Qt.WA_DeleteOnClose)
+            
+            # Conectar señal de actualización a un timer diferido
+            # from PySide6.QtCore import QTimer
+            # dialog.estado_mesa_cambiado.connect(...)  <-- ELIMINADO PARA EVITAR CRASH
+            
+            print("DEBUG: Abriendo OrdenDialog.exec()...")
+            self._is_modal_active = True
             try:
-                dialog.estado_mesa_cambiado.connect(self.actualizar_mesas)
-            except Exception:
-                pass
-            dialog.exec()
-            self.actualizar_mesas()
+                dialog.exec()
+            finally:
+                self._is_modal_active = False
+                
+            print("DEBUG: OrdenDialog.exec() finalizado")
+            
+            # Forzar proceso de eventos para limpiar la UI antes de destruir nada
+            from PySide6.QtCore import QCoreApplication
+            QCoreApplication.processEvents()
+            
+            # Limpieza explícita del diálogo (solo variable Python, C++ ya murió por WA_DeleteOnClose)
+            dialog = None
+            
         except Exception as e:
+            print(f"DEBUG: Error en abrir_orden: {e}")
+            import traceback
+            traceback.print_exc()
             QMessageBox.critical(self, "Error", f"No se pudo abrir orden: {e}")
+        finally:
+            # Siempre refrescar al cerrar, independientemente de errores
+            print("DEBUG: Programando actualizar_mesas diferido (500ms)")
+            from PySide6.QtCore import QTimer
+            QTimer.singleShot(500, self.actualizar_mesas)
 
     def agregar_mesa(self):
         seccion_id = self.combo_secciones.currentData()

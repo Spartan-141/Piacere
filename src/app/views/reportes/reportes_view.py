@@ -21,7 +21,6 @@ from datetime import datetime, timedelta
 
 from ...services.factura_service import (
     obtener_facturas_rango,
-    obtener_facturas_por_cliente,
     eliminar_factura,
     obtener_detalles_factura,
 )
@@ -66,7 +65,7 @@ class ReportesView(QWidget):
         search_layout = QHBoxLayout()
         search_layout.setObjectName("search_layout")
         self.input_cliente = QLineEdit()
-        self.input_cliente.setPlaceholderText("Buscar por cliente...")  
+        self.input_cliente.setPlaceholderText("Buscar por cliente o número de factura...")  
         btn_buscar = QPushButton("Buscar")
         btn_buscar.clicked.connect(self.buscar_por_cliente)
         btn_refrescar = QPushButton("Refrescar")
@@ -84,9 +83,9 @@ class ReportesView(QWidget):
         layout.addLayout(search_layout)
 
         # Tabla
-        self.table_facturas = QTableWidget(0, 6)
+        self.table_facturas = QTableWidget(0, 5)
         self.table_facturas.setHorizontalHeaderLabels(
-            ["ID", "Número", "Fecha", "Cliente", "Total", "Orden ID"]
+            ["Número", "Fecha", "Cliente", "Total USD", "Total Bs"]
         )
         self.table_facturas.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table_facturas.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -101,7 +100,7 @@ class ReportesView(QWidget):
 
     def cargar_facturas(self):
         try:
-            facturas = obtener_facturas_rango("2024-01-01", "2025-12-31")
+            facturas = obtener_facturas_rango("2000-01-01", "2050-12-31")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Error consultando facturas: {e}")
             return
@@ -112,26 +111,28 @@ class ReportesView(QWidget):
             self.table_facturas.insertRow(ridx)
 
             valores = [
-                str(factura.id),
                 factura.numero_factura,
                 factura.fecha,
                 factura.cliente_nombre,
                 factura.get_total_formateado(),
-                str(factura.orden_id),
+                f"{factura.total_ves:,.2f} Bs" if factura.total_ves is not None else "0.00 Bs",
             ]
 
             for col, val in enumerate(valores):
                 item = QTableWidgetItem(str(val))
                 item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                if col == 0:
+                    item.setData(Qt.UserRole, factura.id)
                 self.table_facturas.setItem(ridx, col, item)
 
     def buscar_por_cliente(self):
-        cliente = self.input_cliente.text().strip()
-        if not cliente:
-            QMessageBox.warning(self, "Aviso", "Ingrese un nombre de cliente")
+        termino = self.input_cliente.text().strip()
+        if not termino:
+            QMessageBox.warning(self, "Aviso", "Ingrese un término de búsqueda")
             return
         try:
-            facturas = obtener_facturas_por_cliente(cliente)
+            from ...services.factura_service import buscar_facturas
+            facturas = buscar_facturas(termino)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Error buscando facturas: {e}")
             return
@@ -141,15 +142,17 @@ class ReportesView(QWidget):
             ridx = self.table_facturas.rowCount()
             self.table_facturas.insertRow(ridx)
             valores = [
-                str(factura.id),
                 factura.numero_factura,
                 factura.fecha,
                 factura.cliente_nombre,
                 factura.get_total_formateado(),
-                str(factura.orden_id),
+                f"{factura.total_ves:,.2f} Bs" if factura.total_ves is not None else "0.00 Bs",
             ]
             for col, val in enumerate(valores):
                 item = QTableWidgetItem(str(val))
+                item.setFlags(item.flags() & ~Qt.ItemIsEditable) 
+                if col == 0:
+                    item.setData(Qt.UserRole, factura.id)
                 self.table_facturas.setItem(ridx, col, item)
 
     def eliminar_factura_seleccionada(self):
@@ -158,7 +161,7 @@ class ReportesView(QWidget):
             QMessageBox.warning(self, "Aviso", "Seleccione una factura")
             return
 
-        factura_id = int(self.table_facturas.item(row, 0).text())
+        factura_id = self.table_facturas.item(row, 0).data(Qt.UserRole)
         reply = QMessageBox.question(
             self,
             "Confirmar",
@@ -177,7 +180,7 @@ class ReportesView(QWidget):
 
     def ver_detalles_factura(self, item):
         row = item.row()
-        factura_id = int(self.table_facturas.item(row, 0).text())
+        factura_id = self.table_facturas.item(row, 0).data(Qt.UserRole)
         dialog = InvoiceDetailDialog(factura_id, self)
         dialog.exec()
 
@@ -190,11 +193,12 @@ class ReportesView(QWidget):
 
         try:
             # Obtener datos de la factura
-            factura_id = int(self.table_facturas.item(row, 0).text())
-            numero_factura = self.table_facturas.item(row, 1).text()
-            fecha = self.table_facturas.item(row, 2).text()
-            cliente = self.table_facturas.item(row, 3).text()
-            total_text = self.table_facturas.item(row, 4).text()
+            # Obtener datos de la factura
+            factura_id = self.table_facturas.item(row, 0).data(Qt.UserRole)
+            numero_factura = self.table_facturas.item(row, 0).text()
+            fecha = self.table_facturas.item(row, 1).text()
+            cliente = self.table_facturas.item(row, 2).text()
+            total_text = self.table_facturas.item(row, 3).text()
 
             # Obtener factura completa para forma_pago y total_ves
             from ...services.factura_service import obtener_factura_por_id
@@ -242,7 +246,7 @@ class ReportesView(QWidget):
         self.date_ventas_inicio.setStyleSheet(
             """
                 QDateEdit {
-                    background-color: lightblue;   /* color de fondo */
+                    background-color: #f9f9f9;   /* color de fondo */
                     color: black;                  /* color del texto */
                     border: 1px solid gray;        /* borde */
                     border-radius: 4px;            /* esquinas redondeadas */
@@ -259,7 +263,7 @@ class ReportesView(QWidget):
         self.date_ventas_fin.setStyleSheet(
             """
                 QDateEdit {
-                    background-color: lightblue;   /* color de fondo */
+                    background-color: #f9f9f9;   /* color de fondo */
                     color: black;                  /* color del texto */
                     border: 1px solid gray;        /* borde */
                     border-radius: 4px;            /* esquinas redondeadas */
@@ -385,12 +389,34 @@ class ReportesView(QWidget):
         self.date_productos_inicio = QDateEdit()
         self.date_productos_inicio.setCalendarPopup(True)
         self.date_productos_inicio.setDate(QDate.currentDate().addDays(-30))
+        self.date_productos_inicio.setStyleSheet(
+            """
+                QDateEdit {
+                    background-color: #f9f9f9;   /* color de fondo */
+                    color: black;                  /* color del texto */
+                    border: 1px solid gray;        /* borde */
+                    border-radius: 4px;            /* esquinas redondeadas */
+                    padding: 2px;                  /* espacio interno */
+                }
+            """
+        )
         filtros_layout.addWidget(self.date_productos_inicio)
 
         filtros_layout.addWidget(QLabel("Hasta:"))
         self.date_productos_fin = QDateEdit()
         self.date_productos_fin.setCalendarPopup(True)
         self.date_productos_fin.setDate(QDate.currentDate())
+        self.date_productos_fin.setStyleSheet(
+            """
+                QDateEdit {
+                    background-color: #f9f9f9;   /* color de fondo */
+                    color: black;                  /* color del texto */
+                    border: 1px solid gray;        /* borde */
+                    border-radius: 4px;            /* esquinas redondeadas */
+                    padding: 2px;                  /* espacio interno */
+                }
+            """
+        )
         filtros_layout.addWidget(self.date_productos_fin)
 
         btn_consultar_productos = QPushButton("Consultar")

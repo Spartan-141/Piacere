@@ -133,7 +133,8 @@ class DashboardView(QWidget):
         name_role_layout.setSpacing(2)
 
         # Nombre y apellido de usuario
-        self.user_name_label = QLabel(self.usuario[1] + " " + self.usuario[2])
+        nombre_completo = self.usuario.get_nombre_completo()
+        self.user_name_label = QLabel(nombre_completo)
         self.user_name_label.setStyleSheet(
             """
             font-size: 17px;
@@ -145,7 +146,7 @@ class DashboardView(QWidget):
         name_role_layout.addWidget(self.user_name_label)
 
         # Rol
-        role_label = QLabel(self.usuario[3])
+        role_label = QLabel(self.usuario.rol.upper())
         role_label.setStyleSheet(
             """
             font-size: 12px;
@@ -506,12 +507,16 @@ class DashboardView(QWidget):
         # Botones
         btn_nueva_orden = self.create_action_button("🍽️ Nueva Orden")
         btn_nueva_orden.clicked.connect(self.abrir_nueva_orden)
+        
         btn_reportes = self.create_action_button("📊 Ver Reportes")
-        btn_tasa = self.create_action_button("💱 Actualizar Tasa")
+        btn_reportes.clicked.connect(self.abrir_reportes)
+        
+        self.btn_tasa = self.create_action_button("💱 Actualizar Tasa")
+        self.btn_tasa.clicked.connect(self.abrir_actualizar_tasa)
 
         buttons_layout.addWidget(btn_nueva_orden)
         buttons_layout.addWidget(btn_reportes)
-        buttons_layout.addWidget(btn_tasa)
+        buttons_layout.addWidget(self.btn_tasa)
 
         # Spacer inferior para centrar
         buttons_layout.addStretch(1)
@@ -550,7 +555,7 @@ class DashboardView(QWidget):
 
     def get_user_initials(self):
         """Obtiene las iniciales del usuario"""
-        name = self.usuario[1]
+        name = self.usuario.nombre
         parts = name.split()
         if len(parts) >= 2:
             return f"{parts[0][0]}{parts[1][0]}".upper()
@@ -588,6 +593,48 @@ class DashboardView(QWidget):
 
             # Cargar últimas facturas
             self.load_recent_invoices_real()
+            
+            # Verificar estado de la tasa (si ya se registró hoy)
+            # dashboard_service.get_current_exchange_rate() devuelve el valor, 
+            # pero necesitamos saber si es DE HOY.
+            
+            # Opcion 1: Usar tasa_cambio_service directamente
+            from ...services import tasa_cambio_service
+            from datetime import date
+            hoy = date.today().isoformat()
+            tasa_hoy = tasa_cambio_service.obtener_tasa(hoy)
+            
+            if tasa_hoy:
+                # Tasa registrada -> VERDE
+                self.btn_tasa.setStyleSheet("""
+                    QPushButton {
+                        background-color: #27ae60;
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        padding: 15px 20px;
+                        font-size: 13px;
+                        font-weight: bold;
+                    }
+                    QPushButton:hover { background-color: #2ecc71; }
+                """)
+                self.btn_tasa.setText(f"💱 Tasa Actualizada ({tasa_hoy.tasa} Bs)")
+            else:
+                # Tasa NO registrada -> ROJO
+                self.btn_tasa.setStyleSheet("""
+                    QPushButton {
+                        background-color: #c0392b;
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        padding: 15px 20px;
+                        font-size: 13px;
+                        font-weight: bold;
+                        animation: pulse 2s infinite;
+                    }
+                    QPushButton:hover { background-color: #e74c3c; }
+                """)
+                self.btn_tasa.setText("⚠️ ACTUALIZAR TASA")
 
         except Exception as e:
             print(f"Error cargando datos del dashboard: {e}")
@@ -786,3 +833,24 @@ class DashboardView(QWidget):
                 self.load_real_data()
         except Exception as e:
             print(f"Error abriendo nueva orden: {e}")
+
+    def abrir_actualizar_tasa(self):
+        """Abre el diálogo para actualizar la tasa"""
+        try:
+            from ..main.rate_update_dialog import RateUpdateDialog
+            dialog = RateUpdateDialog(parent=self)
+            if dialog.exec():
+                self.load_real_data() # Recargar para actualizar color del botón
+        except Exception as e:
+            print(f"Error abriendo dialogo tasa: {e}")
+
+    def abrir_reportes(self):
+        """Abre el diálogo de reporte diario (Cierre de Caja)"""
+        try:
+            from ..reportes.daily_report_dialog import DailyReportDialog
+            dialog = DailyReportDialog(parent=self)
+            dialog.exec()
+        except Exception as e:
+            print(f"Error abriendo reportes: {e}")
+            import traceback
+            traceback.print_exc()

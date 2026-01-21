@@ -33,37 +33,44 @@ class NuevoUsuarioDialog(QDialog):
         self.input_nombre = QLineEdit()
         self.input_nombre.setPlaceholderText("Nombre")
         self.input_nombre.setMinimumHeight(45)
-        self.input_nombre.setStyleSheet("padding: 10px;")
+        self.input_nombre.setStyleSheet("padding: 10px; background-color: #000000;")
+
 
         self.input_apellido = QLineEdit()
         self.input_apellido.setPlaceholderText("Apellido")
         self.input_apellido.setMinimumHeight(45)
-        self.input_apellido.setStyleSheet("padding: 10px;")
+        self.input_apellido.setStyleSheet("padding: 10px; background-color: #000000;")
+
+        self.input_email = QLineEdit()
+        self.input_email.setPlaceholderText("Email (opcional)")
+        self.input_email.setMinimumHeight(45)
+        self.input_email.setStyleSheet("padding: 10px; background-color: #000000;")
 
         self.input_usuario = QLineEdit()
         self.input_usuario.setPlaceholderText("Nombre de usuario")
         self.input_usuario.setMinimumHeight(45)
-        self.input_usuario.setStyleSheet("padding: 10px;")
+        self.input_usuario.setStyleSheet("padding: 10px; background-color: #000000;")
 
         self.input_clave = QLineEdit()
         self.input_clave.setPlaceholderText("Contraseña")
         self.input_clave.setEchoMode(QLineEdit.Password)
         self.input_clave.setMinimumHeight(45)
-        self.input_clave.setStyleSheet("padding: 10px;")
+        self.input_clave.setStyleSheet("padding: 10px; background-color: #000000;")
 
         self.input_confirmar_clave = QLineEdit()
         self.input_confirmar_clave.setPlaceholderText("Confirmar contraseña")
         self.input_confirmar_clave.setEchoMode(QLineEdit.Password)
         self.input_confirmar_clave.setMinimumHeight(45)
-        self.input_confirmar_clave.setStyleSheet("padding: 10px;")
+        self.input_confirmar_clave.setStyleSheet("padding: 10px; background-color: #000000;")
 
         self.combo_rol = QComboBox()
         self.combo_rol.addItems(["admin", "cajero"])
         self.combo_rol.setMinimumHeight(45)
-        self.combo_rol.setStyleSheet("padding: 10px;")
+        self.combo_rol.setStyleSheet("padding: 10px; background-color: #000000;")
 
         form_layout.addRow("Nombre:", self.input_nombre)
         form_layout.addRow("Apellido:", self.input_apellido)
+        form_layout.addRow("Email:", self.input_email)
         form_layout.addRow("Usuario:", self.input_usuario)
         form_layout.addRow("Contraseña:", self.input_clave)
         form_layout.addRow("Confirmar:", self.input_confirmar_clave)
@@ -113,15 +120,23 @@ class NuevoUsuarioDialog(QDialog):
         self.setLayout(layout)
 
     def validar_registro(self):
+        from ...models import Usuario
+        
         nombre = self.input_nombre.text().strip()
         apellido = self.input_apellido.text().strip()
+        email = self.input_email.text().strip() or None
         usuario = self.input_usuario.text().strip()
         clave = self.input_clave.text()
         confirmar = self.input_confirmar_clave.text()
         rol = self.combo_rol.currentText()
 
         if not nombre or not apellido or not usuario or not clave or not confirmar:
-            QMessageBox.warning(self, "Error", "Todos los campos son obligatorios")
+            QMessageBox.warning(self, "Error", "Nombre, apellido, usuario y contraseña son obligatorios")
+            return
+
+        # Validar email si se proporciona
+        if email and not Usuario.validar_email(email):
+            QMessageBox.warning(self, "Error", "El formato del email no es válido")
             return
 
         if clave != confirmar:
@@ -132,7 +147,7 @@ class NuevoUsuarioDialog(QDialog):
             QMessageBox.warning(self, "Error", "La contraseña debe tener al menos 4 caracteres")
             return
 
-        ok, err = registrar_usuario(nombre, apellido, usuario, clave, rol)
+        ok, err, _ = registrar_usuario(nombre, apellido, usuario, clave, rol, email)
         if ok:
             QMessageBox.information(self, "Éxito", "Usuario registrado correctamente")
             self.accept()

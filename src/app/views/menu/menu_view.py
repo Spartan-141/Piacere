@@ -46,6 +46,19 @@ class SectionDialog(QDialog):
             else ""
         )
         self.input_active = QCheckBox("Activa")
+        self.input_active.setStyleSheet(
+            """
+                QCheckBox {
+                    background-color: #f9f9f9;   /* color de fondo */
+                    color: black;                  /* color del texto */
+                    border: 1px solid gray;        /* borde */
+                    border-radius: 4px;            /* esquinas redondeadas */
+                    padding: 2px;                  /* espacio interno */
+                    font-size: 14px;               /* tamaño de fuente */
+                    font-weight: bold;             /* negrita */
+                }
+            """
+        )
         self.input_active.setChecked(self.section.active if self.section else True)
 
         layout.addRow("Nombre:", self.input_nombre)
@@ -55,11 +68,18 @@ class SectionDialog(QDialog):
         btn_layout = QHBoxLayout()
         btn_guardar = QPushButton("Guardar")
         btn_cancel = QPushButton("Cancelar")
-        btn_guardar.clicked.connect(self.accept)
+        btn_guardar.clicked.connect(self.validate_and_accept)
         btn_cancel.clicked.connect(self.reject)
         btn_layout.addWidget(btn_cancel)
         btn_layout.addWidget(btn_guardar)
         layout.addRow(btn_layout)
+
+    def validate_and_accept(self):
+        nombre = self.input_nombre.text().strip()
+        if not nombre:
+            QMessageBox.warning(self, "Error", "El nombre de la sección es obligatorio")
+            return
+        self.accept()
 
     def values(self):
         return {
@@ -107,6 +127,19 @@ class ItemDialog(QDialog):
         self.input_precio.setDecimals(2)
         self.input_precio.setValue(self.item.precio if self.item else 0.0)
         self.input_disponible = QCheckBox("Disponible")
+        self.input_disponible.setStyleSheet(
+            """
+                QCheckBox {
+                    background-color: #f9f9f9;   /* color de fondo */
+                    color: black;                  /* color del texto */
+                    border: 1px solid gray;        /* borde */
+                    border-radius: 4px;            /* esquinas redondeadas */
+                    padding: 2px;                  /* espacio interno */
+                    font-size: 14px;               /* tamaño de fuente */
+                    font-weight: bold;             /* negrita */
+                }
+            """
+        )
         self.input_disponible.setChecked(self.item.disponible if self.item else True)
 
         layout.addRow("Sección:", self.input_section)
@@ -118,11 +151,18 @@ class ItemDialog(QDialog):
         btn_layout = QHBoxLayout()
         btn_guardar = QPushButton("Guardar")
         btn_cancel = QPushButton("Cancelar")
-        btn_guardar.clicked.connect(self.accept)
+        btn_guardar.clicked.connect(self.validate_and_accept)
         btn_cancel.clicked.connect(self.reject)
         btn_layout.addWidget(btn_cancel)
         btn_layout.addWidget(btn_guardar)
         layout.addRow(btn_layout)
+
+    def validate_and_accept(self):
+        nombre = self.input_nombre.text().strip()
+        if not nombre:
+            QMessageBox.warning(self, "Error", "El nombre del item es obligatorio")
+            return
+        self.accept()
 
     def values(self):
         return {
@@ -312,18 +352,50 @@ class MenuView(QWidget):
             QMessageBox.warning(self, "Error", "Seleccione una sección")
             return
         sec = item.data(Qt.UserRole)
-        resp = QMessageBox.question(
-            self,
-            "Confirmar",
-            f"¿Eliminar sección '{sec.nombre}'? (se recomienda desactivarla)",
-        )
-        if resp == QMessageBox.Yes:
-            ok, err = menu_service.eliminar_seccion(sec.id, soft=True)
-            if not ok:
-                QMessageBox.warning(
-                    self, "Error", err or "No se pudo eliminar/desactivar la sección"
-                )
-            self.refresh_sections()
+        
+        # Crear cuadro de diálogo personalizado
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Eliminar Sección")
+        msg.setText(f"¿Qué desea hacer con la sección '{sec.nombre}'?")
+        msg.setIcon(QMessageBox.Question)
+        
+        # Agregar botones personalizados
+        btn_desactivar = msg.addButton("Desactivar (Ocultar)", QMessageBox.ActionRole)
+        btn_eliminar = msg.addButton("Eliminar Permanentemente", QMessageBox.ActionRole)
+        btn_cancelar = msg.addButton("Cancelar", QMessageBox.RejectRole)
+        
+        msg.exec()
+        
+        clicked_button = msg.clickedButton()
+        
+        if clicked_button == btn_cancelar:
+            return
+            
+        # Determinar si es soft delete o hard delete
+        soft_delete = (clicked_button == btn_desactivar)
+        
+        # Confirmación extra para borrado permanente
+        if not soft_delete:
+            confirm = QMessageBox.warning(
+                self, 
+                "Confirmación Final", 
+                "¿Está seguro? Esta acción eliminará la sección y puede causar errores si tiene productos asociados. Se recomienda Desactivar.",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            if confirm == QMessageBox.No:
+                return
+
+        ok, err = menu_service.eliminar_seccion(sec.id, soft=soft_delete)
+        
+        if not ok:
+             QMessageBox.warning(
+                self, "Error", err or "No se pudo realizar la acción"
+            )
+        else:
+            action_str = "desactivada" if soft_delete else "eliminada"
+            QMessageBox.information(self, "Éxito", f"Sección {action_str} correctamente")
+            
+        self.refresh_sections()
 
     # --- Items ---
     def refresh_items(self):
@@ -366,6 +438,16 @@ class MenuView(QWidget):
         self.table_items.resizeRowsToContents()
 
     def new_item(self):
+        # Validar si existen secciones primero
+        sections = menu_service.listar_secciones(only_active=False)
+        if not sections:
+            QMessageBox.warning(
+                self, 
+                "Acción Requerida", 
+                "No existen secciones creadas.\nDebe crear al menos una sección antes de agregar productos."
+            )
+            return
+
         sec = getattr(self, "current_section", None)
         section_id = sec.id if sec else None
         dlg = ItemDialog(self, section_id=section_id)

@@ -7,6 +7,7 @@ from ..inventario.inventario_view import InventarioView
 from ..reportes.reportes_view import ReportesView
 from ..conversion.tasaview import TasaView
 from ..usuarios.usuarios_view import UsuariosView
+from ..usuarios.mi_perfil_view import MiPerfilView
 from ..dashboard.dashboard_view import DashboardView
 from ..menu.menu_view import MenuView
 
@@ -14,6 +15,7 @@ from ..menu.menu_view import MenuView
 class MainWindow(QMainWindow):
     def __init__(self, usuario):
         super().__init__()
+        # usuario es ahora un objeto Usuario completo
         self.usuario = usuario
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
@@ -31,22 +33,30 @@ class MainWindow(QMainWindow):
         self.mesas_view = MesasView()
         self.menu_view = MenuView()
         self.inventario_view = InventarioView(
-            es_admin=(self.usuario[2] == "admin")
+            es_admin=self.usuario.es_admin()
         )
         self.reportes_view = ReportesView()
         self.tasa_view = TasaView()
-        self.usuarios_view = UsuariosView(
-            es_admin=(self.usuario[2] == "admin")
-        )
+        
+        # Vista de usuarios o perfil según el rol
+        if self.usuario.es_admin():
+            self.usuarios_view = UsuariosView(usuario_actual=self.usuario)
+        else:
+            self.usuarios_view = None
+        
+        # Vista de perfil personal para todos los usuarios
+        self.mi_perfil_view = MiPerfilView(usuario_actual=self.usuario)
 
         # Añadir vistas al stacked
         self.stacked_widget.addWidget(self.dashboard_view)  # index 0
         self.stacked_widget.addWidget(self.mesas_view)  # index 1
-        self.stacked_widget.addWidget(self.menu_view)  # index 6
-        self.stacked_widget.addWidget(self.inventario_view)  # index 2
-        self.stacked_widget.addWidget(self.reportes_view)  # index 3
-        self.stacked_widget.addWidget(self.tasa_view)  # index 4
-        self.stacked_widget.addWidget(self.usuarios_view)  # index 5
+        self.stacked_widget.addWidget(self.menu_view)  # index 2
+        self.stacked_widget.addWidget(self.inventario_view)  # index 3
+        self.stacked_widget.addWidget(self.reportes_view)  # index 4
+        self.stacked_widget.addWidget(self.tasa_view)  # index 5
+        if self.usuarios_view:
+            self.stacked_widget.addWidget(self.usuarios_view)  # index 6
+        self.stacked_widget.addWidget(self.mi_perfil_view)  # index 7
 
         # Conectar botones del sidebar
         self.ui.pushButton.clicked.connect(self.mostrar_dashboard)
@@ -54,7 +64,15 @@ class MainWindow(QMainWindow):
         self.ui.pushButton_8.clicked.connect(self.mostrar_menu)
         self.ui.pushButton_5.clicked.connect(self.mostrar_reportes)
         self.ui.pushButton_6.clicked.connect(self.mostrar_tasa)
-        self.ui.pushButton_7.clicked.connect(self.mostrar_usuarios)
+        
+        # Botón usuarios: muestra gestión de usuarios (admin) o perfil personal (otros)
+        if self.usuario.es_admin():
+            self.ui.pushButton_7.clicked.connect(self.mostrar_usuarios)
+            self.ui.pushButton_7.setText("Usuarios")
+        else:
+            self.ui.pushButton_7.clicked.connect(self.mostrar_mi_perfil)
+            self.ui.pushButton_7.setText("Mi Perfil")
+        
         self.ui.pushButton_9.clicked.connect(self.cerrar_sesion)
 
         # Vista por defecto
@@ -93,11 +111,23 @@ class MainWindow(QMainWindow):
                 pass
 
     def mostrar_usuarios(self):
-        self.stacked_widget.setCurrentWidget(self.usuarios_view)
-        self.ui.label_2.setText("Usuarios")
-        if hasattr(self.usuarios_view, "cargar_usuarios"):
+        """Solo para admin"""
+        if self.usuarios_view and self.usuario.es_admin():
+            self.stacked_widget.setCurrentWidget(self.usuarios_view)
+            self.ui.label_2.setText("Usuarios")
+            if hasattr(self.usuarios_view, "cargar_usuarios"):
+                try:
+                    self.usuarios_view.cargar_usuarios()
+                except Exception:
+                    pass
+    
+    def mostrar_mi_perfil(self):
+        """Para todos los usuarios"""
+        self.stacked_widget.setCurrentWidget(self.mi_perfil_view)
+        self.ui.label_2.setText("Mi Perfil")
+        if hasattr(self.mi_perfil_view, "cargar_datos"):
             try:
-                self.usuarios_view.cargar_usuarios()
+                self.mi_perfil_view.cargar_datos()
             except Exception:
                 pass
 

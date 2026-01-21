@@ -1,5 +1,5 @@
 # src/app/services/reportes_service.py
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Any
 from ..db.connection import ConnectionManager
 
 
@@ -183,3 +183,59 @@ def formatear_bolivares(valor: float) -> str:
 def calcular_porcentaje(parte: float, total: float) -> float:
     """Calcula el porcentaje de una parte respecto al total"""
     return (parte / total * 100) if total > 0 else 0.0
+
+
+def obtener_resumen_ventas_dia(fecha: str) -> Dict[str, Any]:
+    """
+    Obtiene el resumen de ventas del día desglosado por método de pago.
+    Basado en la tabla de FACTURAS.
+    """
+    with ConnectionManager() as conn:
+        cur = conn.cursor()
+        
+        # 1. Totales por método de pago
+        cur.execute(
+            """
+            SELECT 
+                forma_pago,
+                count(*) as cantidad,
+                COALESCE(SUM(total), 0) as total_usd,
+                COALESCE(SUM(total_ves), 0) as total_ves
+            FROM facturas
+            WHERE DATE(fecha) = ?
+            GROUP BY forma_pago
+            """,
+            (fecha,)
+        )
+        
+        rows = cur.fetchall()
+        
+        breakdown = []
+        grand_total_usd = 0.0
+        grand_total_ves = 0.0
+        total_ordenes = 0
+        
+        for row in rows:
+            metodo = row[0] or "Otros"
+            cant = row[1]
+            usd = row[2]
+            ves = row[3]
+            
+            breakdown.append({
+                "metodo": metodo,
+                "cantidad": cant,
+                "usd": usd,
+                "ves": ves
+            })
+            
+            grand_total_usd += usd
+            grand_total_ves += ves
+            total_ordenes += cant
+            
+        return {
+            "fecha": fecha,
+            "total_usd": grand_total_usd,
+            "total_ves": grand_total_ves,
+            "total_ordenes": total_ordenes,
+            "desglose": breakdown
+        }

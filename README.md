@@ -119,10 +119,19 @@ pyinstaller --name="Piacere" --onefile --windowed \
   --hidden-import=kiwisolver \
   --hidden-import=contourpy \
   --hidden-import=packaging \
-  --collect-data matplotlib \
-  --collect-data numpy \
-  --clean piacere_main.py
-```
+  
+powershell
+pyinstaller --name "Piacere" --onefile --windowed --clean `
+>>   --add-data "src/app;app" --add-data "src;src" --add-data "data;data" `
+>>   --hidden-import sqlite3 --hidden-import logging.handlers `
+>>   --hidden-import PySide6.QtCore --hidden-import PySide6.QtGui --hidden-import PySide6.QtWidgets `
+>>   --hidden-import PySide6.QtPrintSupport --hidden-import matplotlib `
+>>   --hidden-import matplotlib.backends.backend_qt5agg --hidden-import matplotlib.backends.backend_agg `
+>>   --hidden-import matplotlib.figure --hidden-import numpy --hidden-import numpy.core `
+>>   --hidden-import numpy.core._multiarray_umath --hidden-import PIL --hidden-import PIL.Image `
+>>   --hidden-import pyparsing --hidden-import cycler --hidden-import kiwisolver `
+>>   --hidden-import contourpy --hidden-import packaging `
+>>   --collect-data matplotlib --collect-data numpy piacere_main.py
 
 ### Resultado
 
