@@ -179,6 +179,40 @@ def migrar_mesas_a_texto():
         conn.close()
 
 
+def migrar_orden_detalles_agregar_estado_cocina():
+    """
+    Migra la tabla orden_detalles para agregar el campo estado_cocina
+    """
+    conn = crear_conexion()
+    if not conn:
+        logger.error("No se pudo conectar para migrar orden_detalles")
+        return False
+
+    try:
+        cur = conn.cursor()
+
+        # Verificar si la columna ya existe
+        cur.execute("PRAGMA table_info(orden_detalles)")
+        columns = {row[1]: row[2] for row in cur.fetchall()}
+
+        if "estado_cocina" not in columns:
+            logger.info("Agregando campo estado_cocina a tabla orden_detalles...")
+            cur.execute("ALTER TABLE orden_detalles ADD COLUMN estado_cocina TEXT DEFAULT 'pendiente'")
+            conn.commit()
+            logger.info("Migración de orden_detalles completada exitosamente")
+        else:
+            logger.info("La tabla orden_detalles ya tiene el campo estado_cocina")
+
+        return True
+
+    except Error as e:
+        logger.exception(f"Error durante la migración de orden_detalles: {e}")
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
+
 def inicializar_base_datos() -> bool:
     """
     Crear tablas, triggers e índices necesarios para la aplicación.
@@ -227,6 +261,7 @@ def inicializar_base_datos() -> bool:
             precio REAL NOT NULL,
             precio_unitario REAL DEFAULT NULL,
             subtotal REAL NOT NULL,
+            estado_cocina TEXT DEFAULT 'pendiente',
             FOREIGN KEY (orden_id) REFERENCES ordenes (id)
         )""",
         """CREATE TABLE IF NOT EXISTS facturas (
@@ -299,6 +334,7 @@ def inicializar_base_datos() -> bool:
         # Índices para orden_detalles
         "CREATE INDEX IF NOT EXISTS idx_orden_detalles_menu_item ON orden_detalles(menu_item_id);",
         "CREATE INDEX IF NOT EXISTS idx_orden_detalles_orden ON orden_detalles(orden_id);",
+        "CREATE INDEX IF NOT EXISTS idx_orden_detalles_estado_cocina ON orden_detalles(estado_cocina);",
         # Índices para menú
         "CREATE INDEX IF NOT EXISTS idx_menu_items_section ON menu_items(section_id);",
         "CREATE INDEX IF NOT EXISTS idx_menu_sections_position ON menu_sections(position);",
@@ -558,11 +594,12 @@ def inicializar_base_datos() -> bool:
         except Error:
             logger.exception("Error al insertar datos iniciales")
 
-        # Ejecutar migración si es necesario
+        # Ejecutar migraciones
         conn.close()
         migrar_mesas_a_texto()
         migrar_usuarios_agregar_email_y_recovery()
         migrar_hashear_passwords_existentes()
+        migrar_orden_detalles_agregar_estado_cocina()
 
         return True
     except Error:
@@ -571,3 +608,4 @@ def inicializar_base_datos() -> bool:
     finally:
         if conn:
             conn.close()
+

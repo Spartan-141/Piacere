@@ -510,13 +510,17 @@ class DashboardView(QWidget):
         
         btn_reportes = self.create_action_button("📊 Ver Reportes")
         btn_reportes.clicked.connect(self.abrir_reportes)
-        
-        self.btn_tasa = self.create_action_button("💱 Actualizar Tasa")
-        self.btn_tasa.clicked.connect(self.abrir_actualizar_tasa)
 
         buttons_layout.addWidget(btn_nueva_orden)
         buttons_layout.addWidget(btn_reportes)
-        buttons_layout.addWidget(self.btn_tasa)
+        
+        # Botón actualizar tasa - solo para admin
+        if self.usuario.puede_modificar_tasa():
+            self.btn_tasa = self.create_action_button("💱 Actualizar Tasa")
+            self.btn_tasa.clicked.connect(self.abrir_actualizar_tasa)
+            buttons_layout.addWidget(self.btn_tasa)
+        else:
+            self.btn_tasa = None
 
         # Spacer inferior para centrar
         buttons_layout.addStretch(1)
@@ -606,35 +610,36 @@ class DashboardView(QWidget):
             
             if tasa_hoy:
                 # Tasa registrada -> VERDE
-                self.btn_tasa.setStyleSheet("""
-                    QPushButton {
-                        background-color: #27ae60;
-                        color: white;
-                        border: none;
-                        border-radius: 8px;
-                        padding: 15px 20px;
-                        font-size: 13px;
-                        font-weight: bold;
-                    }
-                    QPushButton:hover { background-color: #2ecc71; }
-                """)
-                self.btn_tasa.setText(f"💱 Tasa Actualizada ({tasa_hoy.tasa} Bs)")
+                if self.btn_tasa is not None:
+                    self.btn_tasa.setStyleSheet("""
+                        QPushButton {
+                            background-color: #27ae60;
+                            color: white;
+                            border: none;
+                            border-radius: 8px;
+                            padding: 15px 20px;
+                            font-size: 13px;
+                            font-weight: bold;
+                        }
+                        QPushButton:hover { background-color: #2ecc71; }
+                    """)
+                    self.btn_tasa.setText(f"💱 Tasa Actualizada ({tasa_hoy.tasa} Bs)")
             else:
                 # Tasa NO registrada -> ROJO
-                self.btn_tasa.setStyleSheet("""
-                    QPushButton {
-                        background-color: #c0392b;
-                        color: white;
-                        border: none;
-                        border-radius: 8px;
-                        padding: 15px 20px;
-                        font-size: 13px;
-                        font-weight: bold;
-                        animation: pulse 2s infinite;
-                    }
-                    QPushButton:hover { background-color: #e74c3c; }
-                """)
-                self.btn_tasa.setText("⚠️ ACTUALIZAR TASA")
+                if self.btn_tasa is not None:
+                    self.btn_tasa.setStyleSheet("""
+                        QPushButton {
+                            background-color: #c0392b;
+                            color: white;
+                            border: none;
+                            border-radius: 8px;
+                            padding: 15px 20px;
+                            font-size: 13px;
+                            font-weight: bold;
+                        }
+                        QPushButton:hover { background-color: #e74c3c; }
+                    """)
+                    self.btn_tasa.setText("⚠️ ACTUALIZAR TASA")
 
         except Exception as e:
             print(f"Error cargando datos del dashboard: {e}")

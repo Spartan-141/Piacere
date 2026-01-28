@@ -3,7 +3,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QMessageBox, QFrame
 )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont, QPixmap
+from PySide6.QtGui import QFont, QPixmap, QIcon
 from ..main.main_window import MainWindow
 from ...config import resource_path
 
@@ -11,7 +11,10 @@ from ...config import resource_path
 class LoginWindow(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Sistema de Restaurante - Login")
+        self.setWindowTitle("Piacere")
+        # Establecer icono de ventana
+        icon_path = resource_path("icons", "pizza.png")
+        self.setWindowIcon(QIcon(str(icon_path)))
         self.setFixedSize(800, 500)
         self.setup_ui()
 

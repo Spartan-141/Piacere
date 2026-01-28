@@ -1,4 +1,5 @@
 from PySide6.QtWidgets import QMainWindow, QStackedWidget, QVBoxLayout
+from PySide6.QtGui import QIcon
 from .ui_mainwindow import Ui_MainWindow
 
 # Vistas
@@ -10,6 +11,8 @@ from ..usuarios.usuarios_view import UsuariosView
 from ..usuarios.mi_perfil_view import MiPerfilView
 from ..dashboard.dashboard_view import DashboardView
 from ..menu.menu_view import MenuView
+from ..cocina.cocina_view import CocinaView  # Importar vista de cocina
+from ...config import resource_path
 
 
 class MainWindow(QMainWindow):
@@ -19,6 +22,11 @@ class MainWindow(QMainWindow):
         self.usuario = usuario
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+        
+        self.setWindowTitle("Piacere")
+        # Establecer icono de ventana
+        icon_path = resource_path("icons", "pizza.png")
+        self.setWindowIcon(QIcon(str(icon_path)))
 
         # ✅ Asignar layout manualmente a self.ui.main
         layout_main = QVBoxLayout(self.ui.main)
@@ -28,15 +36,16 @@ class MainWindow(QMainWindow):
         self.stacked_widget = QStackedWidget()
         layout_main.addWidget(self.stacked_widget)
 
-        # Instanciar vistas
+        # Instanciar vistas - pasando usuario para control de permisos
         self.dashboard_view = DashboardView(usuario=self.usuario)
-        self.mesas_view = MesasView()
-        self.menu_view = MenuView()
+        self.mesas_view = MesasView(usuario=self.usuario)
+        self.menu_view = MenuView(usuario=self.usuario)
         self.inventario_view = InventarioView(
             es_admin=self.usuario.es_admin()
         )
-        self.reportes_view = ReportesView()
-        self.tasa_view = TasaView()
+        self.reportes_view = ReportesView(usuario=self.usuario)
+        self.tasa_view = TasaView(usuario=self.usuario)
+        self.cocina_view = CocinaView()  # Vista de cocina
         
         # Vista de usuarios o perfil según el rol
         if self.usuario.es_admin():
@@ -57,15 +66,46 @@ class MainWindow(QMainWindow):
         if self.usuarios_view:
             self.stacked_widget.addWidget(self.usuarios_view)  # index 6
         self.stacked_widget.addWidget(self.mi_perfil_view)  # index 7
+        self.stacked_widget.addWidget(self.cocina_view)     # index 8
 
-        # Conectar botones del sidebar
-        self.ui.pushButton.clicked.connect(self.mostrar_dashboard)
-        self.ui.pushButton_3.clicked.connect(self.mostrar_mesas)
-        self.ui.pushButton_8.clicked.connect(self.mostrar_menu)
-        self.ui.pushButton_5.clicked.connect(self.mostrar_reportes)
-        self.ui.pushButton_6.clicked.connect(self.mostrar_tasa)
+        # Configuración de botones e interfaz según rol
+        self._configurar_sidebar()
+
+        # Vista por defecto
+        if self.usuario.es_cocinero():
+            self.mostrar_cocina()
+        else:
+            self.mostrar_dashboard()
+
+    def _configurar_sidebar(self):
+        """Configura la visibilidad y conexiones del sidebar según el rol"""
         
-        # Botón usuarios: muestra gestión de usuarios (admin) o perfil personal (otros)
+        # Conexiones básicas para roles no-cocineros
+        if not self.usuario.es_cocinero():
+            self.ui.pushButton.clicked.connect(self.mostrar_dashboard)
+            self.ui.pushButton_3.clicked.connect(self.mostrar_mesas)
+            self.ui.pushButton_5.clicked.connect(self.mostrar_reportes)
+            self.ui.pushButton_6.clicked.connect(self.mostrar_tasa)
+            
+            # Botón Menú
+            if self.usuario.puede_modificar_menu():
+                self.ui.pushButton_8.clicked.connect(self.mostrar_menu)
+            else:
+                self.ui.pushButton_8.setVisible(False)
+        else:
+            # Si es cocinero, ocultamos casi todo y reusamos botones
+            self.ui.pushButton.setVisible(False)   # Dashboard
+            self.ui.pushButton_3.setVisible(False) # Mesas
+            self.ui.pushButton_5.setVisible(False) # Reportes
+            self.ui.pushButton_6.setVisible(False) # Tasa
+            self.ui.pushButton_8.setVisible(False) # Menu
+            
+            # Reusar un botón para "Cocina" (usaremos el primero disponible)
+            self.ui.pushButton.setVisible(True)
+            self.ui.pushButton.setText("Cocina")
+            self.ui.pushButton.clicked.connect(self.mostrar_cocina)
+        
+        # Botón usuarios/perfil
         if self.usuario.es_admin():
             self.ui.pushButton_7.clicked.connect(self.mostrar_usuarios)
             self.ui.pushButton_7.setText("Usuarios")
@@ -74,9 +114,6 @@ class MainWindow(QMainWindow):
             self.ui.pushButton_7.setText("Mi Perfil")
         
         self.ui.pushButton_9.clicked.connect(self.cerrar_sesion)
-
-        # Vista por defecto
-        self.mostrar_dashboard()
 
     # Métodos para cambiar vistas y actualizar el label del sidebar
     def mostrar_dashboard(self):
@@ -137,6 +174,15 @@ class MainWindow(QMainWindow):
         if hasattr(self.menu_view, "cargar_items"):
             try:
                 self.menu_view.cargar_items()
+            except Exception:
+                pass
+    
+    def mostrar_cocina(self):
+        self.stacked_widget.setCurrentWidget(self.cocina_view)
+        self.ui.label_2.setText("Cocina")
+        if hasattr(self.cocina_view, "refrescar"):
+            try:
+                self.cocina_view.refrescar()
             except Exception:
                 pass
 

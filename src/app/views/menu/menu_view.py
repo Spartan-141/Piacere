@@ -176,8 +176,9 @@ class ItemDialog(QDialog):
 
 # --- MenuView principal ---
 class MenuView(QWidget):
-    def __init__(self):
+    def __init__(self, usuario=None):
         super().__init__()
+        self.usuario = usuario
         self.setup_ui()
         self.refresh_sections()
 
@@ -235,52 +236,56 @@ class MenuView(QWidget):
         sb_layout.setContentsMargins(8, 8, 8, 8)
         sb_layout.setSpacing(10)
 
-        # Búsqueda
+        # Búsqueda - visible para todos
         sb_layout.addWidget(QLabel("Buscar Items"))
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Buscar items...")
-        self.search_input.returnPressed.connect(self.buscar_items)
+        self.search_input.textChanged.connect(self.buscar_items)
         sb_layout.addWidget(self.search_input)
 
-        # Acciones de Sección
-        sb_layout.addWidget(QLabel("Secciones"))
-        self.btn_new_section = QPushButton("Nueva Sección")
-        self.btn_new_section.clicked.connect(self.new_section)
-        sb_layout.addWidget(self.btn_new_section)
+        # Verificar permisos para mostrar botones de modificación
+        puede_modificar = self.usuario.puede_modificar_menu() if self.usuario else True
 
-        self.btn_edit_section = QPushButton("Editar Sección")
-        self.btn_edit_section.clicked.connect(self.edit_section)
-        sb_layout.addWidget(self.btn_edit_section)
+        if puede_modificar:
+            # Acciones de Sección - solo admin
+            sb_layout.addWidget(QLabel("Secciones"))
+            self.btn_new_section = QPushButton("Nueva Sección")
+            self.btn_new_section.clicked.connect(self.new_section)
+            sb_layout.addWidget(self.btn_new_section)
 
-        self.btn_delete_section = QPushButton("Eliminar Sección")
-        self.btn_delete_section.clicked.connect(self.delete_section)
-        sb_layout.addWidget(self.btn_delete_section)
+            self.btn_edit_section = QPushButton("Editar Sección")
+            self.btn_edit_section.clicked.connect(self.edit_section)
+            sb_layout.addWidget(self.btn_edit_section)
 
-        # Acciones de Items
-        sb_layout.addWidget(QLabel("Items"))
-        self.btn_new_item = QPushButton("Nuevo Item")
-        self.btn_new_item.clicked.connect(self.new_item)
-        sb_layout.addWidget(self.btn_new_item)
+            self.btn_delete_section = QPushButton("Eliminar Sección")
+            self.btn_delete_section.clicked.connect(self.delete_section)
+            sb_layout.addWidget(self.btn_delete_section)
 
-        self.btn_edit_item = QPushButton("Editar Item")
-        self.btn_edit_item.clicked.connect(self.edit_item)
-        sb_layout.addWidget(self.btn_edit_item)
+            # Acciones de Items - solo admin
+            sb_layout.addWidget(QLabel("Items"))
+            self.btn_new_item = QPushButton("Nuevo Item")
+            self.btn_new_item.clicked.connect(self.new_item)
+            sb_layout.addWidget(self.btn_new_item)
 
-        self.btn_delete_item = QPushButton("Eliminar Item")
-        self.btn_delete_item.clicked.connect(self.delete_item)
-        sb_layout.addWidget(self.btn_delete_item)
+            self.btn_edit_item = QPushButton("Editar Item")
+            self.btn_edit_item.clicked.connect(self.edit_item)
+            sb_layout.addWidget(self.btn_edit_item)
 
-        # Posición de Items
-        sb_layout.addWidget(QLabel("Posición"))
-        self.btn_subir_item = QPushButton("↑ Subir Item")
-        self.btn_subir_item.clicked.connect(self.subir_item)
-        sb_layout.addWidget(self.btn_subir_item)
+            self.btn_delete_item = QPushButton("Eliminar Item")
+            self.btn_delete_item.clicked.connect(self.delete_item)
+            sb_layout.addWidget(self.btn_delete_item)
 
-        self.btn_bajar_item = QPushButton("↓ Bajar Item")
-        self.btn_bajar_item.clicked.connect(self.bajar_item)
-        sb_layout.addWidget(self.btn_bajar_item)
+            # Posición de Items - solo admin
+            sb_layout.addWidget(QLabel("Posición"))
+            self.btn_subir_item = QPushButton("↑ Subir Item")
+            self.btn_subir_item.clicked.connect(self.subir_item)
+            sb_layout.addWidget(self.btn_subir_item)
 
-        # Refrescar
+            self.btn_bajar_item = QPushButton("↓ Bajar Item")
+            self.btn_bajar_item.clicked.connect(self.bajar_item)
+            sb_layout.addWidget(self.btn_bajar_item)
+
+        # Refrescar - visible para todos
         self.btn_refresh = QPushButton("Refrescar")
         self.btn_refresh.clicked.connect(self.refresh_items)
         sb_layout.addWidget(self.btn_refresh)

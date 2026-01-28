@@ -66,13 +66,9 @@ class InvoicePrintDialog(QDialog):
         btn_pdf = QPushButton("📄 Guardar PDF")
         btn_pdf.clicked.connect(self._save_as_pdf)
 
-        btn_preview = QPushButton("👁️ Vista Previa")
-        btn_preview.clicked.connect(self._show_print_preview)
-
         btn_close = QPushButton("Cerrar")
         btn_close.clicked.connect(self.reject)
 
-        button_layout.addWidget(btn_preview)
         button_layout.addWidget(btn_print)
         button_layout.addWidget(btn_pdf)
         button_layout.addStretch()
@@ -310,16 +306,6 @@ class InvoicePrintDialog(QDialog):
             QMessageBox.information(
                 self, "PDF Guardado", f"Factura guardada como:\n{filename}"
             )
-
-    def _show_print_preview(self):
-        """Muestra vista previa de impresión"""
-        printer = QPrinter(QPrinter.HighResolution)
-        printer.setPageSize(QPageSize(QPageSize.Letter))
-        printer.setPageOrientation(QPageLayout.Orientation.Portrait)
-
-        preview = QPrintPreviewDialog(printer, self)
-        preview.paintRequested.connect(self._handle_paint_request)
-        preview.exec()
 
     def _handle_paint_request(self, printer):
         """Maneja la solicitud de pintado para la vista previa"""

@@ -19,8 +19,9 @@ from ...models import TasaCambio
 
 
 class TasaView(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, usuario=None, parent=None):
         super().__init__(parent)
+        self.usuario = usuario
         self.setWindowTitle("Gestión de Tasa de Cambio USD ↔ VES")
         self.resize(700, 600)
 
@@ -45,28 +46,34 @@ class TasaView(QWidget):
 
         main_layout.addWidget(self.frame_tasa_actual)
 
-        # ===== ACTUALIZAR TASA =====
-        group_actualizar = QGroupBox("Actualizar Tasa del Día")
-        group_actualizar_layout = QHBoxLayout(group_actualizar)
+        # ===== ACTUALIZAR TASA - Solo para admin =====
+        puede_modificar = self.usuario.puede_modificar_tasa() if self.usuario else True
+        
+        if puede_modificar:
+            group_actualizar = QGroupBox("Actualizar Tasa del Día")
+            group_actualizar_layout = QHBoxLayout(group_actualizar)
 
-        group_actualizar_layout.addWidget(QLabel("Nueva tasa:"))
+            group_actualizar_layout.addWidget(QLabel("Nueva tasa:"))
 
-        self.input_tasa = QDoubleSpinBox()
-        self.input_tasa.setMinimum(0.01)
-        self.input_tasa.setMaximum(999999.99)
-        self.input_tasa.setDecimals(2)
-        self.input_tasa.setSingleStep(0.10)
-        self.input_tasa.setSuffix(" Bs/USD")
-        self.input_tasa.setMinimumWidth(150)
-        group_actualizar_layout.addWidget(self.input_tasa)
+            self.input_tasa = QDoubleSpinBox()
+            self.input_tasa.setMinimum(0.01)
+            self.input_tasa.setMaximum(999999.99)
+            self.input_tasa.setDecimals(2)
+            self.input_tasa.setSingleStep(0.10)
+            self.input_tasa.setSuffix(" Bs/USD")
+            self.input_tasa.setMinimumWidth(150)
+            group_actualizar_layout.addWidget(self.input_tasa)
 
-        btn_guardar = QPushButton("Guardar Tasa")
-        btn_guardar.setMinimumHeight(35)
-        btn_guardar.clicked.connect(self.guardar_tasa)
-        group_actualizar_layout.addWidget(btn_guardar)
+            btn_guardar = QPushButton("Guardar Tasa")
+            btn_guardar.setMinimumHeight(35)
+            btn_guardar.clicked.connect(self.guardar_tasa)
+            group_actualizar_layout.addWidget(btn_guardar)
 
-        group_actualizar_layout.addStretch()
-        main_layout.addWidget(group_actualizar)
+            group_actualizar_layout.addStretch()
+            main_layout.addWidget(group_actualizar)
+        else:
+            # Crear input_tasa como None para evitar errores en actualizar_tasa_actual
+            self.input_tasa = None
 
         # ===== CONVERTIDOR BIDIRECCIONAL =====
         group_convertidor = QGroupBox("Convertidor de Moneda")
@@ -148,7 +155,8 @@ class TasaView(QWidget):
             self.label_fecha_actualizacion.setText(
                 f"Última actualización: {tasa_obj.fecha}"
             )
-            self.input_tasa.setValue(tasa_obj.tasa)
+            if self.input_tasa is not None:
+                self.input_tasa.setValue(tasa_obj.tasa)
         else:
             self.label_tasa_actual.setText("1 USD = -- Bs")
             self.label_fecha_actualizacion.setText("Sin tasa registrada")

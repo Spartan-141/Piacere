@@ -64,7 +64,7 @@ class NuevoUsuarioDialog(QDialog):
         self.input_confirmar_clave.setStyleSheet("padding: 10px; background-color: #000000;")
 
         self.combo_rol = QComboBox()
-        self.combo_rol.addItems(["admin", "cajero"])
+        self.combo_rol.addItems(["admin", "cajero", "mesero", "cocinero"])
         self.combo_rol.setMinimumHeight(45)
         self.combo_rol.setStyleSheet("padding: 10px; background-color: #000000;")
 

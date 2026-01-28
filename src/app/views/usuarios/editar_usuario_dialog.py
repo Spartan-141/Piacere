@@ -27,7 +27,7 @@ class EditarUsuarioDialog(QDialog):
         titulo = QLabel("EDITAR USUARIO")
         titulo.setFont(QFont("Arial", 16, QFont.Bold))
         titulo.setAlignment(Qt.AlignCenter)
-        titulo.setStyleSheet("color: #800020;")
+        titulo.setStyleSheet("color: #ffffff;")
         layout.addWidget(titulo)
 
         form_layout = QFormLayout()
@@ -64,7 +64,7 @@ class EditarUsuarioDialog(QDialog):
         self.input_confirmar_clave.setStyleSheet("padding: 10px; background-color: #000000;")
 
         self.combo_rol = QComboBox()
-        self.combo_rol.addItems(["admin", "cajero"])
+        self.combo_rol.addItems(["admin", "cajero", "mesero", "cocinero"])
         self.combo_rol.setCurrentText(self.usuario.rol)
         self.combo_rol.setMinimumHeight(45)
         self.combo_rol.setStyleSheet("padding: 10px; background-color: #000000;")

@@ -45,6 +45,30 @@ class Usuario:
         """Verifica si puede gestionar el inventario"""
         return self.rol == "admin"
     
+    def puede_modificar_menu(self) -> bool:
+        """Verifica si puede modificar el menú (secciones e items)"""
+        return self.rol == "admin"
+    
+    def puede_modificar_tasa(self) -> bool:
+        """Verifica si puede modificar la tasa de cambio"""
+        return self.rol == "admin"
+    
+    def puede_eliminar_facturas(self) -> bool:
+        """Verifica si puede eliminar facturas"""
+        return self.rol == "admin"
+    
+    def puede_gestionar_mesas(self) -> bool:
+        """Verifica si puede agregar/eliminar mesas y secciones"""
+        return self.rol == "admin"
+    
+    def puede_ver_reportes(self) -> bool:
+        """Verifica si puede ver reportes"""
+        return self.rol in ["admin", "cajero"]
+    
+    def es_cocinero(self) -> bool:
+        """Verifica si el usuario es cocinero"""
+        return self.rol == "cocinero"
+    
     def get_nombre_completo(self) -> str:
         """Retorna el nombre completo del usuario"""
         if self.apellido:

@@ -39,8 +39,9 @@ class MesasView(QWidget):
     mesa_seleccionada = Signal(int)
     estado_mesa_cambiado = Signal()
 
-    def __init__(self):
+    def __init__(self, usuario=None):
         super().__init__()
+        self.usuario = usuario
         self._widgets_mesa: List[MesaWidget] = []
         self._all_mesas_cache = []
         self._all_ordenes_cache = []
@@ -116,36 +117,40 @@ class MesasView(QWidget):
         self.combo_estado.currentIndexChanged.connect(lambda: self._on_filter_changed("combo_estado"))
         sb_layout.addWidget(self.combo_estado)
 
-        # Acciones
-        sb_layout.addWidget(QLabel("Mesas"))
+        # Verificar permisos para mostrar botones de gestión
+        puede_gestionar = self.usuario.puede_gestionar_mesas() if self.usuario else True
 
-        self.btn_agregar_mesa = QPushButton("Agregar Mesa")
-        self.btn_agregar_mesa.clicked.connect(self.agregar_mesa)
-        sb_layout.addWidget(self.btn_agregar_mesa)
+        # Acciones - solo visibles para admin
+        if puede_gestionar:
+            sb_layout.addWidget(QLabel("Mesas"))
 
-        self.btn_editar_mesa = QPushButton("Editar Mesa")
-        self.btn_editar_mesa.clicked.connect(self.editar_nombre_mesa)
-        sb_layout.addWidget(self.btn_editar_mesa)
+            self.btn_agregar_mesa = QPushButton("Agregar Mesa")
+            self.btn_agregar_mesa.clicked.connect(self.agregar_mesa)
+            sb_layout.addWidget(self.btn_agregar_mesa)
 
-        self.btn_eliminar_mesa = QPushButton("Eliminar Mesa")
-        self.btn_eliminar_mesa.clicked.connect(self.eliminar_mesa)
-        sb_layout.addWidget(self.btn_eliminar_mesa)
+            self.btn_editar_mesa = QPushButton("Editar Mesa")
+            self.btn_editar_mesa.clicked.connect(self.editar_nombre_mesa)
+            sb_layout.addWidget(self.btn_editar_mesa)
 
-        sb_layout.addWidget(QLabel("Secciones"))
+            self.btn_eliminar_mesa = QPushButton("Eliminar Mesa")
+            self.btn_eliminar_mesa.clicked.connect(self.eliminar_mesa)
+            sb_layout.addWidget(self.btn_eliminar_mesa)
 
-        self.btn_agregar_seccion = QPushButton("Agregar Sección")
-        self.btn_agregar_seccion.clicked.connect(self.agregar_seccion)
-        sb_layout.addWidget(self.btn_agregar_seccion)
+            sb_layout.addWidget(QLabel("Secciones"))
 
-        self.btn_editar_seccion = QPushButton("Editar Sección")
-        self.btn_editar_seccion.clicked.connect(self.editar_nombre_seccion)
-        sb_layout.addWidget(self.btn_editar_seccion)
+            self.btn_agregar_seccion = QPushButton("Agregar Sección")
+            self.btn_agregar_seccion.clicked.connect(self.agregar_seccion)
+            sb_layout.addWidget(self.btn_agregar_seccion)
 
-        self.btn_eliminar_seccion = QPushButton("Eliminar Sección")
-        self.btn_eliminar_seccion.clicked.connect(self.eliminar_seccion)
-        sb_layout.addWidget(self.btn_eliminar_seccion)
+            self.btn_editar_seccion = QPushButton("Editar Sección")
+            self.btn_editar_seccion.clicked.connect(self.editar_nombre_seccion)
+            sb_layout.addWidget(self.btn_editar_seccion)
 
-        # Órdenes
+            self.btn_eliminar_seccion = QPushButton("Eliminar Sección")
+            self.btn_eliminar_seccion.clicked.connect(self.eliminar_seccion)
+            sb_layout.addWidget(self.btn_eliminar_seccion)
+
+        # Órdenes - visibles para todos
         sb_layout.addWidget(QLabel("Órdenes"))
 
         self.input_buscar_orden = QLineEdit()
@@ -799,7 +804,7 @@ class MesasView(QWidget):
             cur = conn.cursor()
             cur.execute(
                 """
-                SELECT o.id, o.cliente_nombre, o.total, o.estado, m.numero
+                SELECT o.id, o.cliente_nombre, o.total, o.estado, m.numero, m.id
                 FROM ordenes o
                 JOIN mesas m ON o.mesa_id = m.id
                 WHERE o.cliente_nombre LIKE ? AND o.estado = 'abierta'
@@ -821,7 +826,12 @@ class MesasView(QWidget):
             from .ordenes_dialog import OrdenesDialog
 
             dialog = OrdenesDialog(resultados, parent=self)
+            dialog = OrdenesDialog(resultados, parent=self)
             dialog.exec()
+
+            # Verificar si se solicitó ir a una orden
+            if getattr(dialog, "mesa_id_to_open", None) is not None:
+                self.abrir_orden(dialog.mesa_id_to_open)
 
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Error al buscar órdenes: {e}")
@@ -835,7 +845,7 @@ class MesasView(QWidget):
             cur = conn.cursor()
             cur.execute(
                 """
-                SELECT o.id, o.cliente_nombre, o.total, o.estado, m.numero
+                SELECT o.id, o.cliente_nombre, o.total, o.estado, m.numero, m.id
                 FROM ordenes o
                 JOIN mesas m ON o.mesa_id = m.id
                 WHERE o.estado = 'abierta'
@@ -853,7 +863,12 @@ class MesasView(QWidget):
             from .ordenes_dialog import OrdenesDialog
 
             dialog = OrdenesDialog(resultados, parent=self)
+            dialog = OrdenesDialog(resultados, parent=self)
             dialog.exec()
+
+            # Verificar si se solicitó ir a una orden
+            if getattr(dialog, "mesa_id_to_open", None) is not None:
+                self.abrir_orden(dialog.mesa_id_to_open)
 
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Error al obtener órdenes: {e}")

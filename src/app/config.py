@@ -24,7 +24,7 @@ LOG_LEVEL: str = os.environ.get("APP_LOG_LEVEL", "DEBUG" if DEBUG else "INFO")
 
 # Opciones de UI / defaults
 DEFAULT_WINDOW_SIZE = (1024, 768)
-APP_NAME = "Sistema Restaurante"
+APP_NAME = "Piacere"
 
 
 def get_env_bool(name: str, default: bool) -> bool:

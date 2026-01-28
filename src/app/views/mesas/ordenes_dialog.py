@@ -22,6 +22,7 @@ class OrdenesDialog(QDialog):
     def __init__(self, ordenes_data, parent=None):
         super().__init__(parent)
         self.ordenes_data = ordenes_data
+        self.mesa_id_to_open = None
         self.setWindowTitle("Órdenes")
         self.setMinimumSize(700, 400)
         self.setModal(True)
@@ -72,6 +73,12 @@ class OrdenesDialog(QDialog):
         btn_ver.clicked.connect(self.ver_detalle_orden)
         btn_layout.addWidget(btn_ver)
 
+        btn_ir = QPushButton("Ir a la Orden")
+        btn_ir.setMinimumWidth(120)
+        btn_ir.setMinimumHeight(35)
+        btn_ir.clicked.connect(self.ir_a_orden)
+        btn_layout.addWidget(btn_ir)
+
         btn_cerrar = QPushButton("Cerrar")
         btn_cerrar.setMinimumWidth(120)
         btn_cerrar.setMinimumHeight(35)
@@ -85,8 +92,8 @@ class OrdenesDialog(QDialog):
         self.tabla.setRowCount(len(self.ordenes_data))
 
         for row, orden in enumerate(self.ordenes_data):
-            # orden = (id, cliente_nombre, total, estado, mesa_numero)
-            orden_id, cliente, total, estado, mesa = orden
+            # orden = (id, cliente_nombre, total, estado, mesa_numero, mesa_id)
+            orden_id, cliente, total, estado, mesa, mesa_id = orden
 
             # Cliente
             item_cliente = QTableWidgetItem(cliente or "N/A")
@@ -97,6 +104,7 @@ class OrdenesDialog(QDialog):
             # Mesa
             item_mesa = QTableWidgetItem(str(mesa))
             item_mesa.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+            item_mesa.setData(Qt.UserRole, mesa_id)  # Guardar mesa_id
             self.tabla.setItem(row, 1, item_mesa)
 
             # Total
@@ -124,3 +132,14 @@ class OrdenesDialog(QDialog):
 
         dialog = OrdenViewDialog(orden_id, parent=self)
         dialog.exec()
+
+    def ir_a_orden(self):
+        """Prepara para ir a editar la orden seleccionada"""
+        row = self.tabla.currentRow()
+        if row < 0:
+            return
+
+        # Obtener mesa_id de columna 1
+        mesa_id = self.tabla.item(row, 1).data(Qt.UserRole)
+        self.mesa_id_to_open = mesa_id
+        self.accept()

@@ -31,8 +31,9 @@ from .invoice_print_dialog import InvoicePrintDialog
 
 
 class ReportesView(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, usuario=None, parent=None):
         super().__init__(parent)
+        self.usuario = usuario
         self.setup_ui()
 
     def setup_ui(self):
@@ -66,20 +67,23 @@ class ReportesView(QWidget):
         search_layout.setObjectName("search_layout")
         self.input_cliente = QLineEdit()
         self.input_cliente.setPlaceholderText("Buscar por cliente o número de factura...")  
-        btn_buscar = QPushButton("Buscar")
-        btn_buscar.clicked.connect(self.buscar_por_cliente)
+        self.input_cliente.textChanged.connect(self.buscar_por_cliente)
         btn_refrescar = QPushButton("Refrescar")
         btn_refrescar.clicked.connect(self.cargar_facturas)
         btn_imprimir = QPushButton("🖨️ Imprimir Factura")
         btn_imprimir.clicked.connect(self.imprimir_factura_seleccionada)
-        btn_eliminar = QPushButton("Eliminar Seleccionada")
-        btn_eliminar.clicked.connect(self.eliminar_factura_seleccionada)
 
         search_layout.addWidget(self.input_cliente)
-        search_layout.addWidget(btn_buscar)
         search_layout.addWidget(btn_refrescar)
         search_layout.addWidget(btn_imprimir)
-        search_layout.addWidget(btn_eliminar)
+        
+        # Botón eliminar - solo para admin
+        puede_eliminar = self.usuario.puede_eliminar_facturas() if self.usuario else True
+        if puede_eliminar:
+            btn_eliminar = QPushButton("Eliminar Seleccionada")
+            btn_eliminar.clicked.connect(self.eliminar_factura_seleccionada)
+            search_layout.addWidget(btn_eliminar)
+        
         layout.addLayout(search_layout)
 
         # Tabla
@@ -128,7 +132,7 @@ class ReportesView(QWidget):
     def buscar_por_cliente(self):
         termino = self.input_cliente.text().strip()
         if not termino:
-            QMessageBox.warning(self, "Aviso", "Ingrese un término de búsqueda")
+            self.cargar_facturas()
             return
         try:
             from ...services.factura_service import buscar_facturas
@@ -278,10 +282,6 @@ class ReportesView(QWidget):
         btn_consultar_ventas.clicked.connect(self.cargar_ventas)
         filtros_layout.addWidget(btn_consultar_ventas)
 
-        btn_exportar_ventas = QPushButton("Exportar CSV")
-        btn_exportar_ventas.clicked.connect(self.exportar_ventas_csv)
-        filtros_layout.addWidget(btn_exportar_ventas)
-
         filtros_layout.addStretch()
         layout.addWidget(filtros_group)
 
@@ -352,27 +352,6 @@ class ReportesView(QWidget):
             self.table_ventas.setItem(ridx, 1, QTableWidgetItem(f"${total:,.2f}"))
             self.table_ventas.setItem(ridx, 2, QTableWidgetItem(str(ordenes)))
 
-    def exportar_ventas_csv(self):
-        fecha_inicio = self.date_ventas_inicio.date().toString("yyyy-MM-dd")
-        fecha_fin = self.date_ventas_fin.date().toString("yyyy-MM-dd")
-
-        filename = f"ventas_{fecha_inicio}_a_{fecha_fin}.csv"
-
-        try:
-            with open(filename, "w", newline="", encoding="utf-8") as f:
-                writer = csv.writer(f)
-                writer.writerow(["Fecha", "Total USD", "Órdenes"])
-
-                ventas = reportes_service.obtener_ventas_diarias(
-                    fecha_inicio, fecha_fin
-                )
-                for fecha, total, ordenes in ventas:
-                    writer.writerow([fecha, f"{total:.2f}", ordenes])
-
-            QMessageBox.information(self, "Éxito", f"Exportado a: {filename}")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error exportando: {e}")
-
     # ==========================================
     # TAB: PRODUCTOS
     # ==========================================
@@ -422,10 +401,6 @@ class ReportesView(QWidget):
         btn_consultar_productos = QPushButton("Consultar")
         btn_consultar_productos.clicked.connect(self.cargar_productos)
         filtros_layout.addWidget(btn_consultar_productos)
-
-        btn_exportar_productos = QPushButton("Exportar CSV")
-        btn_exportar_productos.clicked.connect(self.exportar_productos_csv)
-        filtros_layout.addWidget(btn_exportar_productos)
 
         filtros_layout.addStretch()
         layout.addWidget(filtros_group)
@@ -513,24 +488,3 @@ class ReportesView(QWidget):
             self.table_top_ingresos.setItem(
                 ridx, 3, QTableWidgetItem(f"{porcentaje:.1f}%")
             )
-
-    def exportar_productos_csv(self):
-        fecha_inicio = self.date_productos_inicio.date().toString("yyyy-MM-dd")
-        fecha_fin = self.date_productos_fin.date().toString("yyyy-MM-dd")
-
-        filename = f"productos_{fecha_inicio}_a_{fecha_fin}.csv"
-
-        try:
-            with open(filename, "w", newline="", encoding="utf-8") as f:
-                writer = csv.writer(f)
-                writer.writerow(["Producto", "Cantidad", "Ingresos USD"])
-
-                productos = reportes_service.obtener_productos_mas_vendidos(
-                    fecha_inicio, fecha_fin, 50
-                )
-                for producto, cantidad, ingresos in productos:
-                    writer.writerow([producto, int(cantidad), f"{ingresos:.2f}"])
-
-            QMessageBox.information(self, "Éxito", f"Exportado a: {filename}")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error exportando: {e}")

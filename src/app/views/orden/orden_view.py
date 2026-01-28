@@ -77,7 +77,7 @@ class OrdenDialog(QDialog):
             QListWidget::item { padding: 10px; }
             QListWidget::item:selected { background: #2b2b31; color: #fff; }
             QTableWidget { background: #0f0f12; gridline-color: #232326; }
-            QHeaderView::section { background: #3b1f25; color: white; padding: 6px; }
+            QHeaderView::section { color: white; padding: 6px; }
             QPushButton { padding: 8px 12px; border-radius: 6px; }
             QPushButton#addBtn { background: #2980b9; color: white; font-weight: bold; }
             QPushButton#confirmBtn { background: #27ae60; color: white; font-weight: bold; }
