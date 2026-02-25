@@ -57,9 +57,6 @@ El archivo `requirements.txt` incluye:
 # Framework de interfaz gráfica
 PySide6==6.10.0          # Qt for Python
 
-# Utilidades de desarrollo
-watchdog==6.0.0          # Hot reload en desarrollo
-
 # Dashboard y visualización de datos
 matplotlib>=3.7.0        # Gráficos y visualizaciones
 numpy>=1.24.0           # Cálculos numéricos
@@ -73,12 +70,8 @@ pillow>=10.0.0          # Procesamiento de imágenes
 python run.py
 ```
 
-**Modo desarrollo con hot reload:**
-```bash
-python dev.py
-```
+La aplicación puede ejecutarse directamente con `run.py`.
 
-El modo desarrollo reinicia automáticamente la aplicación cuando detecta cambios en el código. Ver [HOT_RELOAD.md](HOT_RELOAD.md) para más detalles.
 
 ---
 

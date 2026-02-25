@@ -31,6 +31,12 @@ dist/
 *.bak
 *.swp
 
+# Base de datos SQLite
+data/*.db
+
+# Archivos de datos de ejemplo
+*.csv
+
 # Archivos de sistema (Windows/Mac)
 .DS_Store
 Thumbs.db

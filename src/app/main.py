@@ -7,7 +7,6 @@ from .views.login.login import LoginWindow
 from .utils.logging_config import configure_logging
 from .db.init_db import inicializar_base_datos
 from .styles import DARK_STYLES
-#from .utils.hot_reload import setup_hot_reload
 
 
 def main():
@@ -16,8 +15,6 @@ def main():
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
 
-    # 🔥 Activar hot reload para estilos
-    #observer = setup_hot_reload(app)
 
     # 🟡 Configurar idioma
     translator = QTranslator(app)
